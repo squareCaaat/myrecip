@@ -1,0 +1,121 @@
+version: '3.8'
+
+services:
+  # PostgreSQL 데이터베이스
+  postgres:
+    image: postgres:15
+    container_name: cocktail_postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      TZ: Asia/Seoul
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - cocktail-network
+
+  # Redis 캐시
+  redis:
+    image: redis:7-alpine
+    container_name: cocktail_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - cocktail-network
+
+  # User Service
+  user-service:
+    build: ./user-service
+    container_name: cocktail_user_service
+    ports:
+      - "8001:8001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL}
+      - SECRET_KEY=${SECRET_KEY}
+      - ACCESS_TOKEN_EXPIRE_MINUTES=${ACCESS_TOKEN_EXPIRE_MINUTES}
+    volumes:
+      - ./user-service:/app
+    networks:
+      - cocktail-network
+    restart: unless-stopped
+
+  # Recipe Service
+  recipe-service:
+    build: ./recipe-service
+    container_name: cocktail_recipe_service
+    ports:
+      - "8002:8002"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL}
+      - SECRET_KEY=${SECRET_KEY}
+    volumes:
+      - ./recipe-service:/app
+      - recipe_images:/app/uploads
+    networks:
+      - cocktail-network
+    restart: unless-stopped
+
+  # API Gateway
+  api-gateway:
+    build: ./api-gateway
+    container_name: cocktail_api_gateway
+    ports:
+      - "8000:8000"
+    depends_on:
+      - user-service
+      - recipe-service
+    environment:
+      - USER_SERVICE_URL=${USER_SERVICE_URL}
+      - RECIPE_SERVICE_URL=${RECIPE_SERVICE_URL}
+      - REDIS_URL=${REDIS_URL}
+      - SECRET_KEY=${SECRET_KEY}
+    volumes:
+      - ./api-gateway:/app
+    networks:
+      - cocktail-network
+    restart: unless-stopped
+
+# 볼륨 설정
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  recipe_images:
+    driver: local
+
+# 네트워크 설정
+networks:
+  cocktail-network:
+    driver: bridge
+
+
