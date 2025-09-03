@@ -5,6 +5,8 @@ services:
   postgres:
     image: postgres:15
     container_name: cocktail_postgres
+    env_file:
+      - .env
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
@@ -27,6 +29,8 @@ services:
   redis:
     image: redis:7-alpine
     container_name: cocktail_redis
+    env_file:
+      - .env
     ports:
       - "6379:6379"
     volumes:
@@ -44,6 +48,8 @@ services:
   user-service:
     build: ./user-service
     container_name: cocktail_user_service
+    env_file:
+      - .env
     ports:
       - "8001:8001"
     depends_on:
@@ -66,6 +72,8 @@ services:
   recipe-service:
     build: ./recipe-service
     container_name: cocktail_recipe_service
+    env_file:
+      - .env
     ports:
       - "8002:8002"
     depends_on:
@@ -88,6 +96,8 @@ services:
   api-gateway:
     build: ./api-gateway
     container_name: cocktail_api_gateway
+    env_file:
+      - .env
     ports:
       - "8000:8000"
     depends_on:
