@@ -1,15 +1,16 @@
 import os
 from pydantic_settings import BaseSettings
-
+from pydantic import Field, validator
+from typing import List
 
 class Settings(BaseSettings):
     """애플리케이션 설정"""
     
     # 데이터베이스 설정
-    database_url: str = os.getenv("DATABASE_URL", "postgresql://postgres:password@localhost:5432/test_db")
+    database_url: str = Field(default="postgresql://postgres:password@localhost:5432/test_db", env="DATABASE_URL")
     
     # Redis 설정
-    redis_url: str = os.getenv("REDIS_URL", "redis://redis:6379")
+    redis_url: str = Field(default="redis://redis:6379", env="REDIS_URL")
     
     # JWT 설정
     secret_key: str = os.getenv("SECRET_KEY", None)
@@ -17,12 +18,13 @@ class Settings(BaseSettings):
     
     # 애플리케이션 설정
     app_name: str = "My Cocktail Recipe Service"
-    debug: bool = os.getenv("DEBUG", "False").lower() == "true"
+    debug: bool = Field(default=False, env="DEBUG")
     
     # 파일 업로드 설정
-    max_file_size: int = int(os.getenv("MAX_FILE_SIZE", "5242880"))  # 5MB
-    allowed_extensions: list = os.getenv("ALLOWED_EXTENSIONS", "jpg,jpeg,png,gif").split(",")
-    upload_dir: str = os.getenv("UPLOAD_DIR", "/app/uploads")
+    max_file_size: int = Field(default=5242880, env="MAX_FILE_SIZE")  # 5MB
+    allowed_extensions: List[str] = Field(default=["jpg","jpeg","png","gif"], env="ALLOWED_EXTENSIONS")
+    
+    upload_dir: str = Field(default="/app/uploads", env="UPLOAD_DIR")
     
     # CORS 설정
     allowed_origins: list = ["*"]  # 프로덕션에서는 구체적인 도메인으로 변경
