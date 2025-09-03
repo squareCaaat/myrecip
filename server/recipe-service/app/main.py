@@ -3,10 +3,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 import uvicorn
 import os
-
-# 로컬 임포트는 나중에 추가
-# from .routers import recipes, images
-# from .database import engine, Base
+from app.routers import recipes
+from app.database import async_engine, Base
+from app.config import settings
 
 app = FastAPI(
     title="칵테일 저장소 Recipe Service",
@@ -19,14 +18,14 @@ app = FastAPI(
 # CORS 설정
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # 프로덕션에서는 구체적인 도메인으로 제한
+    allow_origins=settings.allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 # 정적 파일 서빙 (업로드된 이미지)
-uploads_dir = "/app/uploads"
+uploads_dir = settings.upload_dir
 if not os.path.exists(uploads_dir):
     os.makedirs(uploads_dir)
 
@@ -39,7 +38,8 @@ async def health_check():
     return {
         "status": "healthy",
         "service": "recipe-service",
-        "version": "1.0.0"
+        "version": "1.0.0",
+        "database": "connected"
     }
 
 # 루트 엔드포인트
@@ -48,27 +48,37 @@ async def root():
     """루트 경로"""
     return {
         "message": "칵테일 저장소 Recipe Service",
-        "docs": "/docs"
+        "docs": "/docs",
+        "endpoints": {
+            "recipes": "/api/recipes"
+        }
     }
 
-# 라우터 등록 (나중에 활성화)
-# app.include_router(recipes.router, prefix="/api/recipes", tags=["Recipes"])
-# app.include_router(images.router, prefix="/api/images", tags=["Images"])
+# 라우터 등록
+app.include_router(recipes.router, prefix="/api/recipes", tags=["Recipes"])
 
 # 애플리케이션 시작 이벤트
 @app.on_event("startup")
 async def startup_event():
     """애플리케이션 시작 시 실행"""
     print("Recipe Service 시작됨")
-    # 나중에 데이터베이스 테이블 생성 로직 추가
-    # async with engine.begin() as conn:
-    #     await conn.run_sync(Base.metadata.create_all)
+    
+    # 데이터베이스 테이블 생성
+    try:
+        async with async_engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        print("데이터베이스 테이블 생성 완료")
+    except Exception as e:
+        print(f"데이터베이스 연결 오류: {e}")
 
 # 애플리케이션 종료 이벤트
 @app.on_event("shutdown")
 async def shutdown_event():
     """애플리케이션 종료 시 실행"""
     print("Recipe Service 종료됨")
+    
+    # 데이터베이스 연결 종료
+    await async_engine.dispose()
 
 if __name__ == "__main__":
     uvicorn.run(
