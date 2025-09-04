@@ -5,6 +5,8 @@ from app.database import get_db
 from app.models.schemas import (
     RecipeCreate, RecipeUpdate, RecipeResponse, RecipeListResponse, ShareLinkResponse
 )
+from app.services.recipe_service import RecipeService
+from app.dependencies.auth import get_current_user_id, get_current_user_id_optional
 import uuid
 
 
@@ -15,8 +17,8 @@ router = APIRouter()
 async def get_my_recipes(
     page: int = Query(1, ge=1, description="페이지 번호"),
     per_page: int = Query(10, ge=1, le=100, description="페이지당 항목 수"),
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
-    # current_user: UserResponse = Depends(get_current_user_from_gateway)  # API Gateway에서 전달받음
 ):
     """
     내 레시피 목록 조회
@@ -26,22 +28,15 @@ async def get_my_recipes(
     
     페이징된 레시피 목록을 반환합니다.
     """
-    # TODO: 실제 레시피 조회 로직 구현
-    return RecipeListResponse(
-        recipes=[],
-        total=0,
-        page=page,
-        per_page=per_page,
-        has_next=False,
-        has_prev=False
-    )
+    recipe_service = RecipeService(db)
+    return await recipe_service.get_recipes_by_user(current_user_id, page, per_page)
 
 
 @router.post("/", response_model=RecipeResponse, status_code=status.HTTP_201_CREATED)
 async def create_recipe(
     recipe_data: RecipeCreate,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
-    # current_user: UserResponse = Depends(get_current_user_from_gateway)
 ):
     """
     새 레시피 생성
@@ -52,18 +47,15 @@ async def create_recipe(
     - **notes**: 개인 팁 (선택)
     - **ingredients**: 재료 목록 (필수)
     """
-    # TODO: 실제 레시피 생성 로직 구현
-    raise HTTPException(
-        status_code=status.HTTP_501_NOT_IMPLEMENTED,
-        detail="레시피 생성 기능은 구현 중입니다."
-    )
+    recipe_service = RecipeService(db)
+    return await recipe_service.create_recipe(recipe_data, current_user_id)
 
 
 @router.get("/{recipe_id}", response_model=RecipeResponse)
 async def get_recipe(
     recipe_id: str,
+    current_user_id: Optional[str] = Depends(get_current_user_id_optional),
     db: AsyncSession = Depends(get_db)
-    # current_user: Optional[UserResponse] = Depends(get_current_user_optional_from_gateway)
 ):
     """
     레시피 상세 조회
@@ -72,27 +64,16 @@ async def get_recipe(
     
     공개 레시피이거나 본인의 레시피인 경우 조회 가능합니다.
     """
-    try:
-        recipe_uuid = uuid.UUID(recipe_id)
-    except ValueError:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="올바르지 않은 레시피 ID 형식입니다."
-        )
-    
-    # TODO: 실제 레시피 조회 로직 구현
-    raise HTTPException(
-        status_code=status.HTTP_404_NOT_FOUND,
-        detail="레시피를 찾을 수 없습니다."
-    )
+    recipe_service = RecipeService(db)
+    return await recipe_service.get_recipe_by_id(recipe_id, current_user_id)
 
 
 @router.put("/{recipe_id}", response_model=RecipeResponse)
 async def update_recipe(
     recipe_id: str,
     update_data: RecipeUpdate,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
-    # current_user: UserResponse = Depends(get_current_user_from_gateway)
 ):
     """
     레시피 수정
@@ -101,26 +82,15 @@ async def update_recipe(
     
     본인의 레시피만 수정 가능합니다.
     """
-    try:
-        recipe_uuid = uuid.UUID(recipe_id)
-    except ValueError:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="올바르지 않은 레시피 ID 형식입니다."
-        )
-    
-    # TODO: 실제 레시피 수정 로직 구현
-    raise HTTPException(
-        status_code=status.HTTP_501_NOT_IMPLEMENTED,
-        detail="레시피 수정 기능은 구현 중입니다."
-    )
+    recipe_service = RecipeService(db)
+    return await recipe_service.update_recipe(recipe_id, update_data, current_user_id)
 
 
 @router.delete("/{recipe_id}", status_code=status.HTTP_200_OK)
 async def delete_recipe(
     recipe_id: str,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
-    # current_user: UserResponse = Depends(get_current_user_from_gateway)
 ):
     """
     레시피 삭제
@@ -129,23 +99,16 @@ async def delete_recipe(
     
     본인의 레시피만 삭제 가능합니다.
     """
-    try:
-        recipe_uuid = uuid.UUID(recipe_id)
-    except ValueError:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="올바르지 않은 레시피 ID 형식입니다."
-        )
-    
-    # TODO: 실제 레시피 삭제 로직 구현
+    recipe_service = RecipeService(db)
+    await recipe_service.delete_recipe(recipe_id, current_user_id)
     return {"message": "레시피가 삭제되었습니다."}
 
 
 @router.post("/{recipe_id}/share", response_model=ShareLinkResponse)
 async def create_share_link(
     recipe_id: str,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
-    # current_user: UserResponse = Depends(get_current_user_from_gateway)
 ):
     """
     레시피 공유 링크 생성
@@ -154,28 +117,16 @@ async def create_share_link(
     
     본인의 레시피에 대한 공유 링크를 생성합니다.
     """
-    try:
-        recipe_uuid = uuid.UUID(recipe_id)
-    except ValueError:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="올바르지 않은 레시피 ID 형식입니다."
-        )
-    
-    # TODO: 실제 공유 링크 생성 로직 구현
-    share_uuid = uuid.uuid4()
-    return ShareLinkResponse(
-        share_id=share_uuid,
-        share_url=f"/shared/{share_uuid}"
-    )
+    recipe_service = RecipeService(db)
+    return await recipe_service.create_share_link(recipe_id, current_user_id)
 
 
 @router.post("/{recipe_id}/image", status_code=status.HTTP_200_OK)
 async def upload_recipe_image(
     recipe_id: str,
-    file: UploadFile = File(...),
+    file: UploadFile = File(..., description="업로드할 이미지 파일"),
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
-    # current_user: UserResponse = Depends(get_current_user_from_gateway)
 ):
     """
     레시피 이미지 업로드
@@ -185,16 +136,10 @@ async def upload_recipe_image(
     
     본인의 레시피에만 이미지를 업로드할 수 있습니다.
     """
-    try:
-        recipe_uuid = uuid.UUID(recipe_id)
-    except ValueError:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="올바르지 않은 레시피 ID 형식입니다."
-        )
+    from app.services.image_service import ImageService
     
-    # TODO: 실제 이미지 업로드 로직 구현
-    return {"message": "이미지가 업로드되었습니다.", "filename": file.filename}
+    image_service = ImageService(db)
+    return await image_service.upload_recipe_image(recipe_id, file, current_user_id)
 
 
 @router.get("/{recipe_id}/visual")
@@ -209,19 +154,15 @@ async def get_visual_image(
     
     레시피의 재료 비율을 기반으로 시각화 이미지를 생성합니다.
     """
-    try:
-        recipe_uuid = uuid.UUID(recipe_id)
-    except ValueError:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="올바르지 않은 레시피 ID 형식입니다."
-        )
+    from app.services.image_service import ImageService
     
-    # TODO: 실제 시각화 이미지 생성 로직 구현
-    raise HTTPException(
-        status_code=status.HTTP_501_NOT_IMPLEMENTED,
-        detail="시각화 이미지 생성 기능은 구현 중입니다."
-    )
+    image_service = ImageService(db)
+    visual_url = await image_service.generate_visual_image(recipe_id)
+    
+    return {
+        "message": "시각화 이미지가 생성되었습니다.",
+        "visual_url": visual_url
+    }
 
 
 # 공유 레시피 조회 (인증 불필요)
@@ -237,17 +178,6 @@ async def get_shared_recipe(
     
     공유 링크를 통해 레시피를 조회합니다. 인증이 필요하지 않습니다.
     """
-    try:
-        share_uuid = uuid.UUID(share_id)
-    except ValueError:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="올바르지 않은 공유 링크 형식입니다."
-        )
-    
-    # TODO: 실제 공유 레시피 조회 로직 구현
-    raise HTTPException(
-        status_code=status.HTTP_404_NOT_FOUND,
-        detail="공유된 레시피를 찾을 수 없습니다."
-    )
+    recipe_service = RecipeService(db)
+    return await recipe_service.get_shared_recipe(share_id)
 
