@@ -1,11 +1,21 @@
-from fastapi import FastAPI, Request, Response, HTTPException
+from fastapi import FastAPI, Request, Response, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 import httpx
 import uvicorn
+import time
+import logging
 from app.config import settings
+from app.middleware.auth import AuthMiddleware
 
-# 로컬 임포트는 나중에 추가
-# from .routes import proxy
+# 로깅 설정
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Rate Limiter 설정
+limiter = Limiter(key_func=get_remote_address)
 
 app = FastAPI(
     title="칵테일 저장소 API Gateway",
@@ -15,14 +25,43 @@ app = FastAPI(
     redoc_url="/redoc"
 )
 
+# Rate Limiting 설정
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+# 인증 미들웨어 추가
+auth_middleware = AuthMiddleware()
+app.middleware("http")(auth_middleware)
+
 # CORS 설정
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # 프로덕션에서는 구체적인 도메인으로 제한
+    allow_origins=settings.allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# 로깅 미들웨어
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    start_time = time.time()
+    
+    # 요청 로깅
+    logger.info(f"Request: {request.method} {request.url.path}")
+    
+    response = await call_next(request)
+    
+    # 응답 시간 계산
+    process_time = time.time() - start_time
+    
+    # 응답 로깅
+    logger.info(f"Response: {response.status_code} - {process_time:.4f}s")
+    
+    # 응답 헤더에 처리 시간 추가
+    response.headers["X-Process-Time"] = str(process_time)
+    
+    return response
 
 # 서비스 URL 설정
 USER_SERVICE_URL = settings.user_service_url
@@ -72,61 +111,122 @@ async def root():
         }
     }
 
-# 기본 프록시 라우팅 (나중에 개선)
+# 향상된 프록시 라우팅
 @app.api_route("/api/auth/{path:path}", methods=["GET", "POST", "PUT", "DELETE"])
 @app.api_route("/api/users/{path:path}", methods=["GET", "POST", "PUT", "DELETE"])
+@limiter.limit("60/minute")
 async def proxy_user_service(request: Request, path: str):
-    """User Service로 요청 프록시"""
+    """User Service로 요청 프록시 (Rate Limited)"""
     try:
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=settings.service_timeout) as client:
             # 요청 헤더 및 바디 전달
             headers = dict(request.headers)
+            
+            # Host 헤더 제거 (서비스 간 통신 시 충돌 방지)
+            headers.pop('host', None)
+            
             body = await request.body()
             
-            # User Service로 요청 전달
-            url = f"{USER_SERVICE_URL}/api/{request.url.path.split('/')[-2]}/{path}"
+            # URL 구성
+            service_path = request.url.path.replace("/api/", "/api/")
+            url = f"{USER_SERVICE_URL}{service_path}"
+            
+            logger.info(f"Proxying to User Service: {url}")
+            
             response = await client.request(
                 method=request.method,
                 url=url,
                 headers=headers,
-                content=body,
-                timeout=30.0
+                content=body
             )
+            
+            # 응답 헤더 정리 (불필요한 헤더 제거)
+            response_headers = dict(response.headers)
+            response_headers.pop('content-encoding', None)
+            response_headers.pop('content-length', None)
             
             return Response(
                 content=response.content,
                 status_code=response.status_code,
-                headers=dict(response.headers)
+                headers=response_headers,
+                media_type=response.headers.get('content-type')
             )
+            
+    except httpx.TimeoutException:
+        logger.error(f"User Service timeout: {request.url.path}")
+        raise HTTPException(
+            status_code=status.HTTP_504_GATEWAY_TIMEOUT,
+            detail="User Service 응답 시간 초과"
+        )
+    except httpx.ConnectError:
+        logger.error(f"User Service connection error: {request.url.path}")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="User Service에 연결할 수 없습니다"
+        )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"User Service 연결 오류: {str(e)}")
+        logger.error(f"User Service proxy error: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"User Service 연결 오류: {str(e)}"
+        )
 
 @app.api_route("/api/recipes/{path:path}", methods=["GET", "POST", "PUT", "DELETE"])
+@limiter.limit("100/minute")  # 레시피는 더 높은 한도
 async def proxy_recipe_service(request: Request, path: str):
-    """Recipe Service로 요청 프록시"""
+    """Recipe Service로 요청 프록시 (Rate Limited)"""
     try:
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=settings.service_timeout) as client:
             # 요청 헤더 및 바디 전달
             headers = dict(request.headers)
+            
+            # Host 헤더 제거
+            headers.pop('host', None)
+            
             body = await request.body()
             
-            # Recipe Service로 요청 전달
+            # URL 구성
             url = f"{RECIPE_SERVICE_URL}/api/recipes/{path}"
+            
+            logger.info(f"Proxying to Recipe Service: {url}")
+            
             response = await client.request(
                 method=request.method,
                 url=url,
                 headers=headers,
-                content=body,
-                timeout=30.0
+                content=body
             )
+            
+            # 응답 헤더 정리
+            response_headers = dict(response.headers)
+            response_headers.pop('content-encoding', None)
+            response_headers.pop('content-length', None)
             
             return Response(
                 content=response.content,
                 status_code=response.status_code,
-                headers=dict(response.headers)
+                headers=response_headers,
+                media_type=response.headers.get('content-type')
             )
+            
+    except httpx.TimeoutException:
+        logger.error(f"Recipe Service timeout: {request.url.path}")
+        raise HTTPException(
+            status_code=status.HTTP_504_GATEWAY_TIMEOUT,
+            detail="Recipe Service 응답 시간 초과"
+        )
+    except httpx.ConnectError:
+        logger.error(f"Recipe Service connection error: {request.url.path}")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Recipe Service에 연결할 수 없습니다"
+        )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Recipe Service 연결 오류: {str(e)}")
+        logger.error(f"Recipe Service proxy error: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Recipe Service 연결 오류: {str(e)}"
+        )
 
 # 애플리케이션 시작 이벤트
 @app.on_event("startup")
