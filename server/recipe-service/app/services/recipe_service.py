@@ -31,7 +31,8 @@ class RecipeService:
             user_uuid = uuid.UUID(user_id)
         except ValueError:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST, detail="올바르지 않은 사용자 ID 형식입니다."
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="올바르지 않은 사용자 ID 형식입니다.",
             )
         # ingredients 빈 배열인지 확인
         if not recipe_data.ingredients:
@@ -81,7 +82,8 @@ class RecipeService:
             user_uuid = uuid.UUID(user_id)
         except ValueError:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST, detail="올바르지 않은 사용자 ID 형식입니다."
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="올바르지 않은 사용자 ID 형식입니다.",
             )
 
         # 전체 개수 조회
@@ -129,14 +131,16 @@ class RecipeService:
             recipe_uuid = uuid.UUID(recipe_id)
         except ValueError:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST, detail="올바르지 않은 레시피 ID 형식입니다."
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="올바르지 않은 레시피 ID 형식입니다.",
             )
 
         recipe = await self._get_recipe_with_ingredients(recipe_uuid)
 
         if not recipe:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="레시피를 찾을 수 없습니다."
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="레시피를 찾을 수 없습니다.",
             )
 
         # 공개 레시피이거나 본인의 레시피인지 확인
@@ -160,7 +164,8 @@ class RecipeService:
             user_uuid = uuid.UUID(user_id)
         except ValueError:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST, detail="올바르지 않은 ID 형식입니다."
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="올바르지 않은 ID 형식입니다.",
             )
 
         # 레시피 조회 및 권한 확인
@@ -222,7 +227,8 @@ class RecipeService:
             user_uuid = uuid.UUID(user_id)
         except ValueError:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST, detail="올바르지 않은 ID 형식입니다."
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="올바르지 않은 ID 형식입니다.",
             )
 
         # 레시피 조회 및 권한 확인
@@ -252,7 +258,8 @@ class RecipeService:
             user_uuid = uuid.UUID(user_id)
         except ValueError:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST, detail="올바르지 않은 ID 형식입니다."
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="올바르지 않은 ID 형식입니다.",
             )
 
         # 레시피 조회 및 권한 확인
@@ -284,7 +291,8 @@ class RecipeService:
             share_uuid = uuid.UUID(share_id)
         except ValueError:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST, detail="올바르지 않은 공유 링크 형식입니다."
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="올바르지 않은 공유 링크 형식입니다.",
             )
 
         stmt = select(Recipe).where(
@@ -295,7 +303,8 @@ class RecipeService:
 
         if not recipe:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="공유된 레시피를 찾을 수 없습니다."
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="공유된 레시피를 찾을 수 없습니다.",
             )
 
         return await self._get_recipe_with_ingredients(recipe.recipe_id)
