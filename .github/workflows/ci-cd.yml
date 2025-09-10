@@ -20,6 +20,10 @@ jobs:
     steps:
     - name: 코드 체크아웃
       uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.USER_TOKEN }}
+        fetch-depth: 0
+        
     
     - name: Python 3.11 설정
       uses: actions/setup-python@v4
@@ -37,8 +41,8 @@ jobs:
       run: |
         cd server
 
-        git config --local user.email {{ secrets.USER_EMAIL }}
-        git config --local user.name {{ secrets.USER_USERNAME }}
+        git config --local user.email ${{ secrets.USER_EMAIL }}
+        git config --local user.name ${{ secrets.USER_USERNAME }}
 
         if ! black --check --diff .; then
           black .
