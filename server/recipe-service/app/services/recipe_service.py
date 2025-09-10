@@ -26,6 +26,12 @@ class RecipeService:
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="올바르지 않은 사용자 ID 형식입니다."
             )
+        # ingredients 빈 배열인지 확인
+        if not recipe_data.ingredients:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="재료 항목은 필수 입니다."
+            )
         
         # 새 레시피 생성
         new_recipe = Recipe(
@@ -41,6 +47,11 @@ class RecipeService:
         
         # 재료 추가
         for ingredient_data in recipe_data.ingredients:
+            if ingredient_data.amount <= 0:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail="재료 양은 0 이상이어야 합니다."
+                )
             ingredient = Ingredient(
                 recipe_id=new_recipe.recipe_id,
                 name=ingredient_data.name,
