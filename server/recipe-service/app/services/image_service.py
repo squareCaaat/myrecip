@@ -72,9 +72,12 @@ class ImageService:
             }
 
         except Exception as e:
-            # 실패 시 파일 삭제
-            if os.path.exists(file_path):
-                os.remove(file_path)
+            # 실패 시 파일 삭제 (실패는 무시)
+            try:
+                if os.path.exists(file_path):
+                    os.remove(file_path)
+            except Exception:
+                pass
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"이미지 업로드 중 오류가 발생했습니다: {str(e)}",
