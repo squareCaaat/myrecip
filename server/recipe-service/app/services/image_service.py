@@ -95,7 +95,8 @@ class ImageService:
 
         if not recipe:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="레시피를 찾을 수 없습니다."
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="레시피를 찾을 수 없습니다.",
             )
 
         # 재료 정보 조회
