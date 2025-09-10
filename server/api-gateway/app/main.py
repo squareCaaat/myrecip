@@ -1,4 +1,5 @@
-from fastapi import FastAPI, Request, Response, HTTPException, Depends
+from contextlib import asynccontextmanager
+from fastapi import FastAPI, Request, Response, HTTPException, Depends, status
 from fastapi.middleware.cors import CORSMiddleware
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
@@ -17,12 +18,22 @@ logger = logging.getLogger(__name__)
 # Rate Limiter 설정
 limiter = Limiter(key_func=get_remote_address)
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """애플리케이션 생명주기 관리"""
+    # Startup
+    print("API Gateway 시작됨")
+    yield
+    # Shutdown  
+    print("API Gateway 종료됨")
+
 app = FastAPI(
     title="칵테일 저장소 API Gateway",
     description="마이크로서비스 API 게이트웨이",
     version="1.0.0",
     docs_url="/docs",
-    redoc_url="/redoc"
+    redoc_url="/redoc",
+    lifespan=lifespan
 )
 
 # Rate Limiting 설정
@@ -228,17 +239,7 @@ async def proxy_recipe_service(request: Request, path: str):
             detail=f"Recipe Service 연결 오류: {str(e)}"
         )
 
-# 애플리케이션 시작 이벤트
-@app.on_event("startup")
-async def startup_event():
-    """애플리케이션 시작 시 실행"""
-    print("API Gateway 시작됨")
-
-# 애플리케이션 종료 이벤트
-@app.on_event("shutdown")
-async def shutdown_event():
-    """애플리케이션 종료 시 실행"""
-    print("API Gateway 종료됨")
+# 기존 on_event는 lifespan으로 마이그레이션됨
 
 if __name__ == "__main__":
     uvicorn.run(

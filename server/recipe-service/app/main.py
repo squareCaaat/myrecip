@@ -1,3 +1,4 @@
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -7,12 +8,35 @@ from app.routers import recipes
 from app.database import async_engine, Base
 from app.config import settings
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """애플리케이션 생명주기 관리"""
+    # Startup
+    print("Recipe Service 시작됨")
+    
+    # 데이터베이스 테이블 생성
+    try:
+        async with async_engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        print("데이터베이스 테이블 생성 완료")
+    except Exception as e:
+        print(f"데이터베이스 연결 오류: {e}")
+    
+    yield
+    
+    # Shutdown  
+    print("Recipe Service 종료됨")
+    
+    # 데이터베이스 연결 종료
+    await async_engine.dispose()
+
 app = FastAPI(
     title="칵테일 저장소 Recipe Service",
     description="칵테일 레시피 관리 및 이미지 처리 서비스",
     version="1.0.0",
     docs_url="/docs",
-    redoc_url="/redoc"
+    redoc_url="/redoc",
+    lifespan=lifespan
 )
 
 # CORS 설정
@@ -57,28 +81,7 @@ async def root():
 # 라우터 등록
 app.include_router(recipes.router, prefix="/api/recipes", tags=["Recipes"])
 
-# 애플리케이션 시작 이벤트
-@app.on_event("startup")
-async def startup_event():
-    """애플리케이션 시작 시 실행"""
-    print("Recipe Service 시작됨")
-    
-    # 데이터베이스 테이블 생성
-    try:
-        async with async_engine.begin() as conn:
-            await conn.run_sync(Base.metadata.create_all)
-        print("데이터베이스 테이블 생성 완료")
-    except Exception as e:
-        print(f"데이터베이스 연결 오류: {e}")
-
-# 애플리케이션 종료 이벤트
-@app.on_event("shutdown")
-async def shutdown_event():
-    """애플리케이션 종료 시 실행"""
-    print("Recipe Service 종료됨")
-    
-    # 데이터베이스 연결 종료
-    await async_engine.dispose()
+# 기존 on_event는 lifespan으로 마이그레이션됨
 
 if __name__ == "__main__":
     uvicorn.run(

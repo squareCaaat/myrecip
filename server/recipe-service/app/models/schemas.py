@@ -1,6 +1,6 @@
 from datetime import datetime
 from typing import List, Optional
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from decimal import Decimal
 import uuid
 
@@ -23,8 +23,7 @@ class IngredientResponse(IngredientBase):
     ingredient_id: uuid.UUID
     recipe_id: uuid.UUID
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # 레시피 기본 스키마
@@ -61,8 +60,7 @@ class RecipeResponse(RecipeBase):
     updated_at: datetime
     ingredients: List[IngredientResponse] = []
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # 레시피 목록 응답 스키마 (페이징용)
