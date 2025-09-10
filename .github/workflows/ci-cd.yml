@@ -141,7 +141,7 @@ jobs:
     - name: 데이터베이스 연결 확인
       run: |
         # PostgreSQL 연결 확인
-        psql -h localhost -U postgres -d cocktail_db_test
+        psql -h localhost -U postgres -d cocktail_db_test -W ${{ secrets.POSTGRES_PASSWORD }}
 
         # Redis 연결 확인
         redis-cli ping
