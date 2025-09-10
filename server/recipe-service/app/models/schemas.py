@@ -1,8 +1,9 @@
-from datetime import datetime
-from typing import List, Optional
-from pydantic import BaseModel, ConfigDict
-from decimal import Decimal
 import uuid
+from datetime import datetime
+from decimal import Decimal
+from typing import List, Optional
+
+from pydantic import BaseModel, ConfigDict
 
 
 # 재료 기본 스키마
@@ -22,7 +23,7 @@ class IngredientCreate(IngredientBase):
 class IngredientResponse(IngredientBase):
     ingredient_id: uuid.UUID
     recipe_id: uuid.UUID
-    
+
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -59,7 +60,7 @@ class RecipeResponse(RecipeBase):
     created_at: datetime
     updated_at: datetime
     ingredients: List[IngredientResponse] = []
-    
+
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -77,4 +78,3 @@ class RecipeListResponse(BaseModel):
 class ShareLinkResponse(BaseModel):
     share_id: uuid.UUID
     share_url: str
-

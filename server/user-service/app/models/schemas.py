@@ -1,7 +1,8 @@
+import uuid
 from datetime import datetime
 from typing import Optional
-from pydantic import BaseModel, EmailStr, ConfigDict
-import uuid
+
+from pydantic import BaseModel, ConfigDict, EmailStr
 
 
 # 사용자 기본 스키마
@@ -32,7 +33,7 @@ class UserResponse(UserBase):
     user_id: uuid.UUID
     created_at: datetime
     updated_at: datetime
-    
+
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -46,4 +47,3 @@ class Token(BaseModel):
 # 토큰 데이터 스키마
 class TokenData(BaseModel):
     user_id: Optional[str] = None
-

@@ -1,27 +1,32 @@
-import sys, os
+import os
+import sys
+
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 # 테스트 환경 설정
 TEST_DATABASE_URL = "postgresql://postgres:password123!@localhost:5432/cocktail_db_test"
-TEST_ASYNC_DATABASE_URL = TEST_DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://")
+TEST_ASYNC_DATABASE_URL = TEST_DATABASE_URL.replace(
+    "postgresql://", "postgresql+asyncpg://"
+)
 
 # 테스트용 환경 변수 설정
 os.environ["DATABASE_URL"] = TEST_DATABASE_URL
 os.environ["SECRET_KEY"] = "test-secret-key"
 
 import asyncio
-import pytest
-import pytest_asyncio
-from sqlalchemy import create_engine, event
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
-from sqlalchemy.orm import sessionmaker
-from fastapi.testclient import TestClient
 import uuid
 from decimal import Decimal
 
-from app.main import app
-from app.database import get_db, Base
+import pytest
+import pytest_asyncio
+from fastapi.testclient import TestClient
+from sqlalchemy import create_engine, event
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from sqlalchemy.orm import sessionmaker
+
 from app.config import settings
+from app.database import Base, get_db
+from app.main import app
 
 
 @pytest_asyncio.fixture(scope="session")
@@ -36,17 +41,17 @@ def event_loop():
 async def test_engine():
     """테스트용 데이터베이스 엔진"""
     engine = create_async_engine(TEST_ASYNC_DATABASE_URL, echo=False)
-    
+
     # 테스트 데이터베이스 테이블 생성
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-    
+
     yield engine
-    
+
     # 테스트 완료 후 테이블 삭제
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
-    
+
     await engine.dispose()
 
 
@@ -56,9 +61,9 @@ async def test_db_session(test_engine):
     async_session = sessionmaker(
         test_engine, class_=AsyncSession, expire_on_commit=False
     )
-    
+
     async with async_session() as session:
-        transaction = await session.begin() # Nested transaction
+        transaction = await session.begin()  # Nested transaction
         try:
             yield session
         finally:
@@ -97,21 +102,21 @@ def sample_recipe_data():
                 "name": "화이트 럼",
                 "amount": Decimal("50.00"),
                 "unit": "ml",
-                "color": "#F5DEB3"
+                "color": "#F5DEB3",
             },
             {
-                "name": "라임 주스", 
+                "name": "라임 주스",
                 "amount": Decimal("20.00"),
                 "unit": "ml",
-                "color": "#00FF00"
+                "color": "#00FF00",
             },
             {
                 "name": "민트잎",
                 "amount": Decimal("10.00"),
                 "unit": "잎",
-                "color": "#98FB98"
-            }
-        ]
+                "color": "#98FB98",
+            },
+        ],
     }
 
 
@@ -129,24 +134,24 @@ def sample_recipe_update_data():
                 "name": "다크 럼",
                 "amount": Decimal("60.00"),
                 "unit": "ml",
-                "color": "#8B4513"
+                "color": "#8B4513",
             },
             {
                 "name": "라임 주스",
-                "amount": Decimal("25.00"), 
+                "amount": Decimal("25.00"),
                 "unit": "ml",
-                "color": "#00FF00"
-            }
-        ]
+                "color": "#00FF00",
+            },
+        ],
     }
 
 
 @pytest_asyncio.fixture
 async def created_recipe(test_db_session, sample_recipe_data, test_user_id):
     """테스트용 생성된 레시피"""
-    from app.services.recipe_service import RecipeService
     from app.models.schemas import RecipeCreate
-    
+    from app.services.recipe_service import RecipeService
+
     recipe_service = RecipeService(test_db_session)
     recipe_create = RecipeCreate(**sample_recipe_data)
     recipe = await recipe_service.create_recipe(recipe_create, test_user_id)
@@ -164,19 +169,20 @@ def auth_headers(test_user_id):
 def mock_image_file():
     """테스트용 모킹 이미지 파일"""
     from io import BytesIO
+
     from fastapi import UploadFile
-    
+
     # 가짜 이미지 데이터
     image_data = b"fake_image_data_for_testing"
     image_file = BytesIO(image_data)
-    
+
     upload_file = UploadFile(
         filename="test_image.jpg",
         file=image_file,
         size=len(image_data),
-        headers={"content-type": "image/jpeg"}
+        headers={"content-type": "image/jpeg"},
     )
-    
+
     return upload_file
 
 
@@ -188,4 +194,3 @@ def pytest_configure(config):
     config.addinivalue_line("markers", "recipe: 레시피 관련 테스트")
     config.addinivalue_line("markers", "image: 이미지 처리 테스트")
     config.addinivalue_line("markers", "slow: 느린 테스트")
-
