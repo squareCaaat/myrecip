@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 테스트 실행 스크립트
 개발자가 로컬에서 테스트를 쉽게 실행할 수 있도록 돕는 스크립트
@@ -44,6 +43,25 @@ def run_command(command, description, cwd=None, env=None):
         return False
 
 
+def setup_service_environment(service_dir, base_env):
+    """서비스별 환경 변수 설정"""
+    service_env = base_env.copy()
+    service_root = str(Path(service_dir).absolute())
+    
+    # OS별 경로 구분자 설정
+    path_sep = ';' if os.name == 'nt' else ':'
+    current_pythonpath = service_env.get('PYTHONPATH', '')
+    
+    # 서비스 디렉터리를 PYTHONPATH에 추가
+    if current_pythonpath:
+        service_env['PYTHONPATH'] = f"{service_root}{path_sep}{current_pythonpath}"
+    else:
+        service_env['PYTHONPATH'] = service_root
+    
+    print(f"서비스 환경 설정 ({service_dir}): PYTHONPATH={service_env['PYTHONPATH']}")
+    return service_env
+
+
 def setup_test_environment():
     """테스트 환경 설정"""
     print("테스트 환경 설정 중...")
@@ -71,7 +89,7 @@ def setup_test_environment():
         'PYTHONPATH': pythonpath
     })
     
-    print(f"PYTHONPATH 설정: {pythonpath}")
+    print(f"기본 PYTHONPATH 설정: {pythonpath}")
     return test_env
 
 
@@ -79,7 +97,6 @@ def check_test_dependencies():
     """테스트 의존성 확인"""
     print("테스트 의존성 확인 중...")
     
-    # dependencies = ['pytest', 'pytest-asyncio', 'pytest-cov']
     dependencies = ['pytest']
     missing = []
     
@@ -146,15 +163,17 @@ def run_unit_tests(service_dir, test_env, coverage=True, verbose=True):
     
     if not os.path.exists(test_dir):
         print(f"테스트 디렉터리가 존재하지 않습니다: {test_dir}")
-        return True
+        return False
+
+    # 서비스별 환경 변수 설정
+    service_env = setup_service_environment(service_dir, test_env)
     
-    pytest_cmd = ['pytest', test_dir, '-m', 'unit']
+    pytest_cmd = ['pytest', '-m', 'unit']
     
     if verbose:
         pytest_cmd.append('-v')
     
-    if coverage:
-        # app_dir = os.path.join(service_dir, 'app')
+    if coverage: 
         pytest_cmd.extend([
             f'--cov=app',
             '--cov-report=term-missing',
@@ -165,19 +184,21 @@ def run_unit_tests(service_dir, test_env, coverage=True, verbose=True):
         pytest_cmd,
         f"단위 테스트 실행 - {service_dir}",
         cwd=service_dir,
-        env=test_env
+        env=service_env
     )
 
 
 def run_integration_tests(service_dir, test_env, verbose=True):
     """통합 테스트 실행"""
     test_dir = os.path.join(service_dir, 'tests')
-    
     if not os.path.exists(test_dir):
         print(f"테스트 디렉터리가 존재하지 않습니다: {test_dir}")
         return True
+
+    # 서비스별 환경 변수 설정
+    service_env = setup_service_environment(service_dir, test_env)
     
-    pytest_cmd = ['pytest', test_dir, '-m', 'integration']
+    pytest_cmd = ['pytest', '-m', 'integration']
     
     if verbose:
         pytest_cmd.append('-v')
@@ -186,30 +207,19 @@ def run_integration_tests(service_dir, test_env, verbose=True):
         pytest_cmd,
         f"통합 테스트 실행 - {service_dir}",
         cwd=service_dir,
-        env=test_env
+        env=service_env
     )
 
 
 def run_all_tests(service_dir, test_env, coverage=True, verbose=True):
     """모든 테스트 실행"""
     test_dir = os.path.join(service_dir, 'tests')
-    
     if not os.path.exists(test_dir):
         print(f"테스트 디렉터리가 존재하지 않습니다: {test_dir}")
         return True
     
-    # 서비스별 PYTHONPATH 설정
-    service_env = test_env.copy()
-    service_root = str(Path(service_dir).absolute())
-    
-    # OS별 경로 구분자 설정
-    path_sep = ';' if os.name == 'nt' else ':'
-    current_pythonpath = service_env.get('PYTHONPATH', '')
-    
-    if current_pythonpath:
-        service_env['PYTHONPATH'] = f"{service_root}{path_sep}{current_pythonpath}"
-    else:
-        service_env['PYTHONPATH'] = service_root
+    # 서비스별 환경 변수 설정
+    service_env = setup_service_environment(service_dir, test_env)
     
     # pytest 명령어 구성
     pytest_cmd = ['pytest', 'tests/']
