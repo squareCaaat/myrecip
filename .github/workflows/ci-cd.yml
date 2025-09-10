@@ -1,0 +1,280 @@
+name: 칵테일 저장소 CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, dev ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch: # 수동 실행 허용
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  # 코드 품질 검사
+  code-quality:
+    name: 코드 품질 검사
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: 코드 체크아웃
+      uses: actions/checkout@v4
+    
+    - name: Python 3.11 설정
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+    
+    - name: 코드 품질 도구 설치
+      run: |
+        python -m pip install --upgrade pip
+        pip install flake8 black isort
+    
+    - name: Black 포맷팅 검사
+      run: |
+        black --check --diff server/
+    
+    - name: isort import 정렬 검사  
+      run: |
+        isort --check-only --diff server/
+    
+    - name: Flake8 린팅 검사
+      run: |
+        flake8 server/ --count --select=E9,F63,F7,F82 --show-source --statistics
+        flake8 server/ --count --exit-zero --max-complexity=10 --max-line-length=88 --statistics
+
+  # 단위 및 통합 테스트
+  test:
+    name: 테스트 실행
+    runs-on: ubuntu-latest
+    needs: code-quality
+    
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+          POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
+          POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    
+    steps:
+    - name: 코드 체크아웃
+      uses: actions/checkout@v4
+    
+    - name: Python 3.11 설정
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+    
+    - name: 의존성 설치 - User Service
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r server/user-service/requirements.txt
+    
+    - name: 의존성 설치 - Recipe Service
+      run: |
+        pip install -r server/recipe-service/requirements.txt
+    
+    - name: 테스트 의존성 설치
+      run: |
+        pip install pytest pytest-asyncio pytest-cov httpx pytest-mock
+    
+    - name: User Service 테스트 실행
+      env:
+        DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        REDIS_URL: ${{ secrets.REDIS_URL }}
+        SECRET_KEY: ${{ secrets.SECRET_KEY }}
+        ACCESS_TOKEN_EXPIRE_MINUTES: 60
+      run: |
+        cd server/user-service
+        pytest tests/ -v --cov=app --cov-report=xml --cov-report=term-missing
+    
+    - name: Recipe Service 테스트 실행
+      env:
+        DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        REDIS_URL: ${{ secrets.REDIS_URL }}
+        SECRET_KEY: ${{ secrets.SECRET_KEY }}
+      run: |
+        cd server/recipe-service
+        pytest tests/ -v --cov=app --cov-report=xml --cov-report=term-missing
+    
+    - name: 테스트 커버리지 업로드
+      uses: codecov/codecov-action@v3
+      if: success()
+      with:
+        files: ./server/user-service/coverage.xml,./server/recipe-service/coverage.xml
+        flags: unittests
+        name: codecov-umbrella
+
+  # Docker 이미지 빌드 및 테스트
+  build:
+    name: Docker 빌드 및 테스트
+    runs-on: ubuntu-latest
+    needs: test
+    
+    steps:
+    - name: 코드 체크아웃
+      uses: actions/checkout@v4
+    
+    - name: Docker Buildx 설정
+      uses: docker/setup-buildx-action@v3
+    
+    - name: 서비스 이미지 빌드
+      run: |
+        cd server
+        docker-compose build --no-cache
+    
+    - name: Docker 이미지 테스트
+      run: |
+        cd server
+        docker-compose up -d postgres redis
+        sleep 10
+        docker-compose up -d user-service recipe-service api-gateway
+        sleep 30
+        
+        # 헬스체크 테스트
+        curl -f http://localhost:8000/health || exit 1
+        curl -f http://localhost:8001/health || exit 1  
+        curl -f http://localhost:8002/health || exit 1
+        
+        docker-compose down
+    
+    - name: 빌드 아티팩트 저장
+      if: success()
+      run: |
+        cd server
+        docker save server-user-service:latest > user-service-image.tar
+        docker save server-recipe-service:latest > recipe-service-image.tar
+        docker save server-api-gateway:latest > api-gateway-image.tar
+    
+    - name: 이미지 아티팩트 업로드
+      uses: actions/upload-artifact@v3
+      if: success()
+      with:
+        name: docker-images
+        path: |
+          server/user-service-image.tar
+          server/recipe-service-image.tar
+          server/api-gateway-image.tar
+        retention-days: 7
+
+  # 보안 스캔
+  security-scan:
+    name: 보안 스캔
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    
+    steps:
+    - name: 코드 체크아웃
+      uses: actions/checkout@v4
+    
+    - name: 의존성 보안 스캔
+      uses: pypa/gh-action-pip-audit@v1.0.8
+      with:
+        inputs: |
+          server/user-service/requirements.txt
+          server/recipe-service/requirements.txt
+          server/api-gateway/requirements.txt
+    
+    - name: CodeQL 분석 설정
+      uses: github/codeql-action/init@v2
+      with:
+        languages: python
+    
+    - name: CodeQL 분석 실행
+      uses: github/codeql-action/analyze@v2
+
+  # Docker Hub 배포 (main 브랜치만)
+  deploy:
+    name: Docker Hub 배포
+    runs-on: ubuntu-latest
+    needs: [build, security-scan]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    
+    steps:
+    - name: 코드 체크아웃
+      uses: actions/checkout@v4
+    
+    - name: Docker 이미지 아티팩트 다운로드
+      uses: actions/download-artifact@v3
+      with:
+        name: docker-images
+        path: ./server/
+    
+    - name: Docker 이미지 로드
+      run: |
+        cd server
+        docker load < user-service-image.tar
+        docker load < recipe-service-image.tar
+        docker load < api-gateway-image.tar
+    
+    - name: Docker Hub 로그인
+      uses: docker/login-action@v3
+      with:
+        username: ${{ secrets.DOCKER_USERNAME }}
+        password: ${{ secrets.DOCKER_PASSWORD }}
+    
+    - name: 이미지 태깅 및 푸시
+      env:
+        VERSION: ${{ github.sha }}
+      run: |
+        # User Service
+        docker tag server-user-service:latest ${{ secrets.DOCKER_USERNAME }}/cocktail-user-service:latest
+        docker tag server-user-service:latest ${{ secrets.DOCKER_USERNAME }}/cocktail-user-service:${VERSION}
+        docker push ${{ secrets.DOCKER_USERNAME }}/cocktail-user-service:latest
+        docker push ${{ secrets.DOCKER_USERNAME }}/cocktail-user-service:${VERSION}
+        
+        # Recipe Service
+        docker tag server-recipe-service:latest ${{ secrets.DOCKER_USERNAME }}/cocktail-recipe-service:latest
+        docker tag server-recipe-service:latest ${{ secrets.DOCKER_USERNAME }}/cocktail-recipe-service:${VERSION}
+        docker push ${{ secrets.DOCKER_USERNAME }}/cocktail-recipe-service:latest
+        docker push ${{ secrets.DOCKER_USERNAME }}/cocktail-recipe-service:${VERSION}
+        
+        # API Gateway
+        docker tag server-api-gateway:latest ${{ secrets.DOCKER_USERNAME }}/cocktail-api-gateway:latest
+        docker tag server-api-gateway:latest ${{ secrets.DOCKER_USERNAME }}/cocktail-api-gateway:${VERSION}
+        docker push ${{ secrets.DOCKER_USERNAME }}/cocktail-api-gateway:latest
+        docker push ${{ secrets.DOCKER_USERNAME }}/cocktail-api-gateway:${VERSION}
+
+  # 배포 알림
+  notify:
+    name: 배포 알림
+    runs-on: ubuntu-latest
+    needs: [deploy]
+    if: always()
+    
+    steps:
+    - name: 배포 성공 알림
+      if: needs.deploy.result == 'success'
+      run: |
+        echo "🎉 배포가 성공적으로 완료되었습니다!"
+        echo "버전: ${{ github.sha }}"
+        echo "브랜치: ${{ github.ref_name }}"
+    
+    - name: 배포 실패 알림
+      if: needs.deploy.result == 'failure'
+      run: |
+        echo "❌ 배포가 실패했습니다!"
+        echo "브랜치: ${{ github.ref_name }}"
+        echo "커밋: ${{ github.sha }}"

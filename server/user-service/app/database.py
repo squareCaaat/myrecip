@@ -1,8 +1,9 @@
 import os
+
 from sqlalchemy import create_engine
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from sqlalchemy.orm import DeclarativeBase, sessionmaker
+
 from app.config import settings
 
 # 환경 변수에서 데이터베이스 URL 가져오기
@@ -19,7 +20,10 @@ AsyncSessionLocal = sessionmaker(
     async_engine, class_=AsyncSession, expire_on_commit=False
 )
 
-Base = declarative_base()
+
+class Base(DeclarativeBase):
+    pass
+
 
 # 의존성 주입용 데이터베이스 세션 생성기
 async def get_db():
@@ -28,5 +32,3 @@ async def get_db():
             yield session
         finally:
             await session.close()
-
-

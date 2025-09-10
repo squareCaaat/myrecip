@@ -1,3 +1,10 @@
-
 .env
 __pycache__
+venv
+.coverage
+htmlcov
+coverage.xml
+pytest.ini
+.pytest_cache
+*.log
+*.bat

@@ -1,0 +1,111 @@
+[tool.black]
+line-length = 88
+target-version = ['py311']
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  # directories
+  \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | build
+  | dist
+  | migrations
+  | alembic
+)/
+'''
+
+[tool.isort]
+profile = "black"
+multi_line_output = 3
+line_length = 88
+include_trailing_comma = true
+force_grid_wrap = 0
+use_parentheses = true
+ensure_newline_before_comments = true
+known_first_party = ["app"]
+known_third_party = ["fastapi", "sqlalchemy", "redis", "pydantic", "jose", "passlib", "pillow"]
+
+[tool.flake8]
+max-line-length = 88
+extend-ignore = ["E203", "W503"]
+exclude = [
+    ".git",
+    "__pycache__",
+    "migrations",
+    "alembic",
+    ".venv",
+    "build",
+    "dist"
+]
+per-file-ignores = [
+    "__init__.py:F401"
+]
+
+[tool.coverage.run]
+source = [
+    "user-service/app",
+    "recipe-service/app", 
+    "api-gateway/app"
+]
+omit = [
+    "*/tests/*",
+    "*/migrations/*",
+    "*/alembic/*",
+    "*/__pycache__/*",
+    "*/conftest.py"
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "if self.debug:",
+    "if settings.DEBUG",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if 0:",
+    "if __name__ == .__main__.:"
+]
+show_missing = true
+skip_covered = false
+fail_under = 80
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+addopts = [
+    "-ra",
+    "--strict-markers",
+    "--strict-config",
+    "--cov",
+    "--cov-report=term-missing",
+    "--cov-report=html",
+    "--cov-report=xml"
+]
+testpaths = [
+    "user-service/tests",
+    "recipe-service/tests"
+]
+filterwarnings = [
+    "error",
+    "ignore::UserWarning",
+    "ignore::DeprecationWarning"
+]
+markers = [
+    "unit: 단위 테스트",
+    "integration: 통합 테스트", 
+    "slow: 느린 테스트",
+    "auth: 인증 관련 테스트",
+    "recipe: 레시피 관련 테스트",
+    "image: 이미지 처리 테스트"
+]
+
+
+
+
+
+
+
