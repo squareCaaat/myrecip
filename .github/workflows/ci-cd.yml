@@ -94,11 +94,11 @@ jobs:
       postgres:
         image: postgres:15
         env:
-          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
-          POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
-          POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: cocktail_db_test
+          POSTGRES_USER: testuser
         ports:
-          - 5432:5432
+          - 5433:5432
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
@@ -108,7 +108,7 @@ jobs:
       redis:
         image: redis:7-alpine
         ports:
-          - 6379:6379
+          - 6380:6379
         options: >-
           --health-cmd "redis-cli ping"
           --health-interval 10s
@@ -141,16 +141,16 @@ jobs:
     - name: 데이터베이스 연결 확인
       run: |
         # PostgreSQL 연결 확인
-        psql "postgresql://postgres:${{ secrets.POSTGRES_PASSWORD }}@postgres:5432/cocktail_db_test" -c '\q'
+        psql "postgresql://testuser:password@localhost:5433/cocktail_db_test" -c '\q'
 
         # Redis 연결 확인
         redis-cli ping
     
     - name: User Service 테스트 실행
       env:
-        DATABASE_URL: ${{ secrets.DATABASE_URL }}
-        REDIS_URL: ${{ secrets.REDIS_URL }}
-        SECRET_KEY: ${{ secrets.SECRET_KEY }}
+        DATABASE_URL: postgresql://testuser:password@localhost:5433/cocktail_db_test
+        REDIS_URL: redis://localhost:6380
+        SECRET_KEY: test-secret-key
         ACCESS_TOKEN_EXPIRE_MINUTES: 60
       run: |
         cd server/user-service
@@ -158,9 +158,9 @@ jobs:
     
     - name: Recipe Service 테스트 실행
       env:
-        DATABASE_URL: ${{ secrets.DATABASE_URL }}
-        REDIS_URL: ${{ secrets.REDIS_URL }}
-        SECRET_KEY: ${{ secrets.SECRET_KEY }}
+        DATABASE_URL: postgresql://testuser:password@localhost:5433/cocktail_db_test
+        REDIS_URL: redis://localhost:6380
+        SECRET_KEY: test-secret-key
       run: |
         cd server/recipe-service
         pytest tests/ -v --cov=app --cov-report=xml --cov-report=term-missing
