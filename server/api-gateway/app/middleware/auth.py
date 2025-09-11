@@ -2,11 +2,11 @@ import json
 from typing import Optional
 
 import httpx
-import redis
 import jwt
-from jwt import InvalidTokenError
+import redis
 from fastapi import HTTPException, Request, status
 from fastapi.responses import JSONResponse
+from jwt import InvalidTokenError
 
 from app.config import settings
 
