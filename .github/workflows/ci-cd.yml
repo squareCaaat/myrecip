@@ -7,6 +7,13 @@ on:
     branches: [ main ]
   workflow_dispatch: # 수동 실행 허용
 
+permissions:
+  contents: write
+  pull-requests: write
+  actions: read
+  checks: write
+  statuses: write
+
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
