@@ -3,9 +3,10 @@ from typing import Optional
 
 import httpx
 import redis
+import jwt
+from jwt import InvalidTokenError
 from fastapi import HTTPException, Request, status
 from fastapi.responses import JSONResponse
-from jose import JWTError, jwt
 
 from app.config import settings
 
@@ -112,7 +113,7 @@ class AuthMiddleware:
 
             return user_id
 
-        except JWTError:
+        except InvalidTokenError:
             return None
         except Exception:
             return None
