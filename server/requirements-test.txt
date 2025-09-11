@@ -1,0 +1,22 @@
+# 테스트 프레임워크
+pytest==7.4.3
+pytest-asyncio==0.21.1
+pytest-cov==4.1.0
+pytest-mock==3.12.0
+
+# HTTP 클라이언트 (테스트용)
+httpx==0.25.2
+
+# 코드 품질 도구
+flake8==6.1.0
+black==23.11.0
+isort==5.12.0
+
+# 테스트 데이터베이스 관련
+pytest-postgresql==4.1.0
+psycopg2==2.9.9
+psycopg2-binary==2.9.9
+pytest-redis==3.0.2
+
+# FastAPI 테스트 도구
+fastapi[all]==0.104.1
