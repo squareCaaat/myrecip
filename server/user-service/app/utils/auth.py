@@ -1,7 +1,8 @@
 from datetime import datetime, timedelta
 from typing import Optional
 
-from jose import JWTError, jwt
+import jwt
+from jwt import InvalidTokenError
 from passlib.context import CryptContext
 from passlib.hash import bcrypt
 
@@ -54,7 +55,7 @@ class AuthUtils:
                 token, settings.secret_key, algorithms=[settings.algorithm]
             )
             return payload
-        except JWTError:
+        except InvalidTokenError:
             return None
 
     @staticmethod

@@ -7,6 +7,13 @@ on:
     branches: [ main ]
   workflow_dispatch: # 수동 실행 허용
 
+permissions:
+  contents: write
+  pull-requests: write
+  actions: read
+  checks: write
+  statuses: write
+
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
@@ -23,7 +30,7 @@ jobs:
       with:
         token: ${{ secrets.GITHUB_TOKEN }}
         fetch-depth: 0
-        
+        ref: ${{ github.head_ref || github.ref_name }}  # 브랜치 명시적 지정
     
     - name: Python 3.11 설정
       uses: actions/setup-python@v4
