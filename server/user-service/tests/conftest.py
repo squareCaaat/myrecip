@@ -4,11 +4,11 @@ import sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 # 테스트 환경 설정
-TEST_DATABASE_URL = "postgresql://postgres:password123!@localhost:5432/cocktail_db_test"
+TEST_DATABASE_URL = "postgresql://testuser:password@localhost:5433/cocktail_db_test"
 TEST_ASYNC_DATABASE_URL = TEST_DATABASE_URL.replace(
     "postgresql://", "postgresql+asyncpg://"
 )
-TEST_REDIS_URL = "redis://localhost:6379/1"  # 테스트용 DB 1번 사용
+TEST_REDIS_URL = "redis://localhost:6380/1"  # 테스트용 DB 1번 사용
 
 # 테스트용 환경 변수 설정
 os.environ["DATABASE_URL"] = TEST_DATABASE_URL

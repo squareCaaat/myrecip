@@ -130,11 +130,10 @@ docker-down:
 
 docker-test:
 	@echo "Docker 환경에서 테스트 실행 중..."
-	docker-compose up -d postgres redis
+	docker-compose up -d postgres-test redis-test
 	@sleep 10
 	@echo "테스트 데이터베이스 준비 완료"
 	$(PYTHON) scripts/run_tests.py --service all
-	docker-compose down
 
 # Docker Test
 test-docker:

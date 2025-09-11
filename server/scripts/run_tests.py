@@ -78,8 +78,8 @@ def setup_test_environment():
     test_env = os.environ.copy()
     test_env.update(
         {
-            "DATABASE_URL": "postgresql://postgres:password123!@localhost:5432/cocktail_db_test",
-            "REDIS_URL": "redis://localhost:6379",
+            "DATABASE_URL": "postgresql://testuser:password@localhost:5433/cocktail_db_test",
+            "REDIS_URL": "redis://localhost:6380",
             "SECRET_KEY": "test-secret-key-for-testing",
             "ACCESS_TOKEN_EXPIRE_MINUTES": "60",
             "PYTHONPATH": pythonpath,
@@ -123,10 +123,10 @@ def check_test_database():
 
         conn = psycopg2.connect(
             host="localhost",
-            port=5432,
+            port=5433,
             database="cocktail_db_test",
-            user="postgres",
-            password="password123!",
+            user="testuser",
+            password="password",
         )
         conn.close()
         print("PostgreSQL 연결 성공")
@@ -134,7 +134,7 @@ def check_test_database():
     except Exception as e:
         print(f"PostgreSQL 연결 실패: {e}")
         print("Docker Compose로 데이터베이스를 실행해주세요:")
-        print("    docker-compose up -d postgres")
+        print("    docker-compose up -d postgres-test")
         return False
 
 
@@ -147,10 +147,10 @@ def check_test_redis():
 
         client = redis.Redis(
             host="localhost",
-            port=6379,
+            port=6380,
             db=1,
             decode_responses=True,
-            password="password123!",
+            # password="password123!",
         )
         client.ping()
         print("Redis 연결 성공")
@@ -158,7 +158,7 @@ def check_test_redis():
     except Exception as e:
         print(f"Redis 연결 실패: {e}")
         print("Docker Compose로 Redis를 실행해주세요:")
-        print("    docker-compose up -d redis")
+        print("    docker-compose up -d redis-test")
         return False
 
 

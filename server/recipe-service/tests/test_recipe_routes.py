@@ -330,12 +330,7 @@ class TestImageRoutes:
         mock_aiofiles_open.assert_called_once()
         mock_file.write.assert_called_once_with(b"fake_image_data")
 
-    @patch("app.services.image_service.os.remove")
-    @patch("app.services.image_service.os.path.exists")
-    @patch("app.services.image_service.aiofiles.open")
-    def test_upload_recipe_image_not_found(
-        self, test_client, auth_headers, mock_exists, mock_aiofiles_open, mock_remove
-    ):
+    def test_upload_recipe_image_not_found(self, test_client, auth_headers):
         """존재하지 않는 레시피 이미지 업로드 실패 테스트"""
         # Given
         import uuid

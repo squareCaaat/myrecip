@@ -4,7 +4,7 @@ import sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 # 테스트 환경 설정
-TEST_DATABASE_URL = "postgresql://postgres:password123!@localhost:5432/cocktail_db_test"
+TEST_DATABASE_URL = "postgresql://testuser:password@localhost:5433/cocktail_db_test"
 TEST_ASYNC_DATABASE_URL = TEST_DATABASE_URL.replace(
     "postgresql://", "postgresql+asyncpg://"
 )
