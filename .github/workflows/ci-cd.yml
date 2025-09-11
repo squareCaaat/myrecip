@@ -218,7 +218,8 @@ jobs:
       run: |
         cd server
         echo ${{ secrets.DOTENV_FILE }} > .env
-        echo ".env 파일 준비 완료"
+        ls -a | grep .env
+        cat .env
     
     - name: 서비스 이미지 빌드
       run: |
