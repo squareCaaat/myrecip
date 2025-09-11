@@ -189,8 +189,12 @@ jobs:
         DATABASE_URL: postgresql://testuser:password@localhost:5433/cocktail_db_test
         REDIS_URL: redis://localhost:6380
         SECRET_KEY: test-secret-key
+        CI: true
+        UPLOAD_DIR: /tmp/uploads
       run: |
         cd server/recipe-service
+        sudo mkdir -p /tmp/uploads
+        sudo chmod 777 /tmp/uploads
         pytest tests/ -v --cov=app --cov-report=xml --cov-report=term-missing
     
     - name: 테스트 커버리지 업로드
