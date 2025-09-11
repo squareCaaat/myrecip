@@ -13,6 +13,7 @@ permissions:
   actions: read
   checks: write
   statuses: write
+  security-events: write
 
 env:
   REGISTRY: ghcr.io
@@ -297,12 +298,12 @@ jobs:
           server/api-gateway/requirements.txt
     
     - name: CodeQL 분석 설정
-      uses: github/codeql-action/init@v2
+      uses: github/codeql-action/init@v3
       with:
         languages: python
     
     - name: CodeQL 분석 실행
-      uses: github/codeql-action/analyze@v2
+      uses: github/codeql-action/analyze@v3
 
   # Docker Hub 배포 (main 브랜치만)
   deploy:
