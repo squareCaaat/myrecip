@@ -25,6 +25,22 @@ services:
     networks:
       - cocktail-network
 
+  postgres-test:
+    image: postgres:15
+    container_name: cocktail_postgres_test
+    environment:
+      POSTGRES_DB: cocktail_db_test
+      POSTGRES_USER: testuser
+      POSTGRES_PASSWORD: password
+      TZ: Asia/Seoul
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data_test:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - cocktail-network
+
   # Redis 캐시
   redis:
     image: redis:7-alpine
@@ -41,6 +57,16 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - cocktail-network
+
+  redis-test:
+    image: redis:7-alpine
+    container_name: cocktail_redis_test
+    ports:
+      - "6380:6379"
+    volumes:
+      - redis_data_test:/data
     networks:
       - cocktail-network
 
@@ -118,7 +144,11 @@ services:
 volumes:
   postgres_data:
     driver: local
+  postgres_data_test:
+    driver: local
   redis_data:
+    driver: local
+  redis_data_test:
     driver: local
   recipe_images:
     driver: local
