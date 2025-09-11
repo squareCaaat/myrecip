@@ -217,8 +217,19 @@ jobs:
     - name: 환경변수 파일 준비
       run: |
         cd server
-        echo ${{ secrets.DOTENV_FILE }} > .env
-        ls -a
+        echo "환경변수 파일 준비 중..."
+        cat > .env << EOF
+        POSTGRES_DB=${{ secrets.POSTGRES_DB }}
+        POSTGRES_USER=${{ secrets.POSTGRES_USER }}
+        POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
+        DATABASE_URL=${{ secrets.DATABASE_URL }}
+        REDIS_URL=${{ secrets.REDIS_URL }}
+        SECRET_KEY=${{ secrets.SECRET_KEY }}
+        ACCESS_TOKEN_EXPIRE_MINUTES=${{ secrets.ACCESS_TOKEN_EXPIRE_MINUTES }}
+        USER_SERVICE_URL=${{ secrets.USER_SERVICE_URL }}
+        RECIPE_SERVICE_URL=${{ secrets.RECIPE_SERVICE_URL }}
+        EOF
+        echo "환경변수 파일 준비 완료"
     
     - name: 서비스 이미지 빌드
       run: |
