@@ -6,4 +6,4 @@ redis==5.0.1
 slowapi==0.1.9
 pydantic>=2.5.2,<3.0.0
 pydantic-settings==2.1.0
-cryptography==42.0.8
+cryptography==44.0.1
