@@ -141,10 +141,38 @@ jobs:
     - name: 데이터베이스 연결 확인
       run: |
         # PostgreSQL 연결 확인
-        psql "postgresql://testuser:password@localhost:5433/cocktail_db_test" -c '\q'
+        python -c "
+        import psycopg2
+        import time
+        
+        for i in range(30):
+            try:
+                conn = psycopg2.connect('postgresql://testuser:password@localhost:5433/cocktail_db_test')
+                print('PostgreSQL 연결 성공')
+                conn.close()
+                break
+            except:
+                print(f'PostgreSQL 연결 대기 중... ({i+1}/30)')
+                time.sleep(2)
+        else:
+            print('❌ PostgreSQL 연결 실패')
+            exit(1)
+        "
 
         # Redis 연결 확인
-        redis-cli ping
+        python -c "
+        import redis
+        import time
+        
+        for i in range(30):
+            try:
+                r = redis.Redis(host='localhost', port=6380)
+                print('Redis 연결 성공')
+                break
+            except:
+                print(f'Redis 연결 대기 중... ({i+1}/30)')
+                time.sleep(2)
+        "
     
     - name: User Service 테스트 실행
       env:
