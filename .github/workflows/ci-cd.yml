@@ -217,14 +217,14 @@ jobs:
     - name: 서비스 이미지 빌드
       run: |
         cd server
-        docker-compose build --no-cache
+        docker compose build --no-cache
     
     - name: Docker 이미지 테스트
       run: |
         cd server
-        docker-compose up -d postgres redis
+        docker compose up -d postgres redis
         sleep 10
-        docker-compose up -d user-service recipe-service api-gateway
+        docker compose up -d user-service recipe-service api-gateway
         sleep 30
         
         # 헬스체크 테스트
@@ -232,7 +232,7 @@ jobs:
         curl -f http://localhost:8001/health || exit 1  
         curl -f http://localhost:8002/health || exit 1
         
-        docker-compose down
+        docker compose down
     
     - name: 빌드 아티팩트 저장
       if: success()
